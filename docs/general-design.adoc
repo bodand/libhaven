@@ -1,0 +1,199 @@
+= libhaven
+:text-align: justify
+
+[abstract]
+The libhaven{wj}footnote:[Haven can mean port.] library is an async I/O library built on the idea of I/O completion ports.
+Using this design, all I/O operations are handled in a central way, where each working thread can just take up the work from a common Completion Port, do the job required to deal with the received data, and begin another I/O operation, on the same interface.
+This allows really easy scalability, in the regard that every thread can work up to their utmost, without having to wait on others or I/O.
+And since the operating system and libhaven take care of I/O related synchronization problems, the threads need only work.
+
+== Central I/O harbor
+
+The heart of a libhaven based I/O loop is a `harbor` object.
+This object is not-copyable and not-movable, like a harbor, and there must exist one and only one for each I/O loop in the application.
+Most applications are heavily advised to only sport one of them and design such that all I/O goes through this harbor.
+This allows assigning all threads to work on blocks here.
+
+When a thread enters the harbor, it enters a wait stack{wj}footnote:[Yes, stack. See <<wait-stack>>] and waits for the next I/O operation to complete.
+When an operation completed the most recent thread to have entered the wait stack, will be notified of the completion and presented the result.
+
+[#wait-stack]
+=== Wait... stack?
+
+Everyone has heard of a wait queue, but what is a wait stack?
+Exactly what is says on the label: a stack, which stores those who wait.
+
+Now the good question is why?
+Because it is more efficient in this case.
+If there is only a single I/O operation that's happening, for any reason, this storage allows libhaven to reduce unnecessary context switches between threads.
+The following diagrams illustrate the problem.
+
+[pikchr,format=svg]
+----
+box "thread #1" wid .5 ht .36 color green
+arrow "stars work" above wid .7
+Q: box wid 1.8 height .6
+box "thread #2" with .w at (Q.w.x+.12, Q.w.y) wid .5 ht .36
+move .03; box "thread #3" same
+move .03; box "thread #4" same
+Q2: box at (.6,-.8) wid 1.8 height .6
+box "thread #1" with .w at (Q2.w.x+.12, Q2.w.y) wid .5 ht .36 color red
+move .03; box "thread #2" same color black
+move .03; box "thread #3" same
+arrow "does work" above from Q2.e wid .7
+box "thread #4" same color green
+----
+
+The green colored thread is the one currently executing and begins starting a piece of work.
+As seen thread #1 starts the work then the next thread waiting in the queue (for the longest time, as is with FIFO semantics) will be dispatched to deal with the new work.
+This however means that while all other threads are sleeping and there is no other jobs to be dealt with, there is a context switch: when the job is started the red thread is put to sleep, and the new green thread is woken up.
+
+Contrast this to the following diagram which deals with the same problem, but instead with a wait stack.
+
+[pikchr,format=svg]
+----
+box "thread #1" wid .5 ht .36 color green
+W: arrow "stars work" above wid .7
+S: box wid .7 ht 1.36 with .nw at (W.end.x,W.end.y+.18)
+down
+box "thread #2" with .w at (S.w.x+.1, S.n.y-.18-.12) wid .5 ht .36
+move .03; box "thread #3" same
+move .03; box "thread #4" same
+
+S2: box wid .7 ht 1.36 at (0,-2)
+down
+box "thread #2" with .w at (S2.w.x+.1, S2.n.y-.18-.12) wid .5 ht .36
+move .03; box "thread #3" same
+move .03; box "thread #4" same
+right
+arrow "does work" above from (S2.ne.x,S2.ne.y-.12-.18) wid .7
+box "thread #1" same color green
+----
+
+The same exact thread that started the work can start immediately working on it, without having to wake anyone up.
+This greatly improves performance in cases where there is low throughput of concurrent jobs, while not impacting performance in case all threads are dealing with other things.
+
+== Memory management
+
+Since constantly allocating and deallocating things is costly, most allocations are pooled.
+This is most relevant with jobs, as there is quite a few of them.
+In each harbor there is a pool of memory which can be used to allocate and deallocate jobs to be dealt with.
+Since jobs are short-lived relatively small objects they can be mostly put on a once allocated pool.
+
+Pools however can shrink and grow depending on the needs of the system.
+Each pool contains multiple puddles, where the actual storage takes place.
+A single puddle is allocated when the pool is constructed, and it is the only puddle until it has been filled.
+
+When a puddle we are trying to allocate in is full, a new puddle is allocated with the same size as the original puddle, and whenever allocation fails from the main puddle, it trickles down to the next puddle.
+And if we reach the final puddle and cannot find enough place, we create a new puddle.
+
+This could, however, cause problems if there is a short term and high influx of jobs that cause a lot of puddles to be allocated, then comes stagnation with a low number of jobs.
+This means that a lot of memory is wasted on the system, which for most uses is relevant.
+Since the library is not meant for giants like Google, who can just add more RAM nigh indefinitely to deal with elasticity requirements like this, we should not assume to be able to have all the memory to ourselves.
+Still, some may not want to deallocate until termination for the last droplets of speed, so the pool can be configured when, if ever, to release puddles.
+
+Along with the job pool, there exist the read and write pools.
+While their names are self-descriptive, the read pool contains chunks of memory which have been read to be passed back to the user code, while write pools are written to by the user to be written out somewhere else.
+
+For this reason, the management of the read and write pools is a bit different.
+The puddle system is mostly the same, but allocation is associated with the user, and until they have explicitly released it, or have let the implicit memory revoker revoke their grip from it, they are not freed.
+What this means is that when a job is assigned to a thread, depending on its type the followings happed:
+
+[lowerroman]
+. If the operation is a read event, thus memory was written to by the library and is presented to the user:
+The memory is provided through a special wrapper pointer that on destruction, by default releases the lock on the allocation, thus the puddle can mark it as free.
+If the user, however, explicitly requests that this memory is to be stored for them, it will not be released.
+This allows the user to store the pointer somewhere, then, when needed read from all the stored pointers.
+If this happens, the user needs to release this memory, otherwise it will be reserved for them until the harbor is destroyed.
+. In the case of a write event, where the user should write the data and the library has work with it:
+the user can request writeable memory ahead of time, and put the data to be written there.
+On the lowest level, these are blocked operations, and a block can be provided to the user upon requesting a buffer.
+When the library dealt with the data, it releases it back to the pool.
+
+While the first option causes extra burden for the users, it allows for better performance, by not requiring the possibly large data to be copied.
+Also, in case a multi-block operation needs to happen, for example an input that needs to be read whole is in-fact longer than the size of a block, the user themselves would need to store the data themselves until they wait for the next block to start working.
+By telling the library to keep this memory for them, the copy can be elided, only a "jump" is needed when reading the two blocks together.
+
+== I/O operations
+
+While doing I/O there can be two concrete types of things we want to achieve:
+our program should be able to take data from the outside, and even more important, it needs to be able to produce some kind of output.
+These two base cases define what the library needs to be able to support:
+
+[lowerroman]
+. If a user can present a buffer it needs to be able to put it out somewhere on the system.
+Where this ends up is not really relevant, all reasonable operating systems themselves abstract this away: on Windows a HANDLE can be a file, a named pipe, a mailslot, a socket, or other fancy Windows things; on POSIX a file descriptor can literally be anything, simple files, an entire event loop itself (BSD kqueue-s, though I/O is not defined on those), or even an entire hard-drive.
+By relying on this abstraction we as libhaven can also provide output to _somewhere_.
+. Some input needs to be read in from the system.
+Again with the same reasoning, this may be anything from files to another computer across the internet.
+
+While both of these operations are essential for an application, yet are quite slow.
+For this there are a myriad of different asynchronous libraries to do I/O since then a more useful part of the code can run while I/O happens.
+Same thing with operating systems providing a lot of different ways to deal with async I/O.
+
+The libhaven library deals with this by having a core harbor, which can then tell the operating system to read from what and where from, and write what and where to.
+After an operation completes, a thread in the harbor can be provided the result allowing it to do something with it, like executing business logic, or assigning a new I/O operation.
+
+=== I/O events
+
+When a notification occurs, the most basic part of an I/O completion event is what is the operating system-level handle defined to it.
+While this can be accessed, and is relied on internally, is not of most use, since relying on a HANDLE value and doing Win32 things to it for example on Windows, will make client code quite unportable.
+
+Other than this there are two plus one base types of notifications: `read_event`, `write_event`, and `terminate_event`.
+
+[lowerroman]
+. The `terminate_event` is a special event type generated when a port is requested to terminate: to do this it sends this event for each thread in the harbor.
+If a thread that at any point in its life waits in a harbor, does not exit when given this event, the entire libraries behavior is undefined.
+. If a read operation completed a `read_event` is pushed into the job-queue.
+When a read-event is pushed, it contains a pointer to the block read (in the read pool) and the length of the data in that block.
+Also, stores whether an EOF has been encountered.
+. And at last, if a write operation completes, the number of bytes written is returned.
+
+In both nontrivial cases if an error occurred, it is represented so that appropriate application logic can be used to react to it.
+Platform specific errors are mapped to a common platform independent error reporting system.
+
+=== I/O commands
+
+To begin an I/O operation, a thread needs to pass an I/O command to the harbor.
+These I/O commands caín be either read or write commands, and they cause a job to be queued into the harbor's job queue.
+The jobs themselves are simple structures, indicating the operation that needs to happen, with the required data.
+
+For a read operation the needed data is where to read from.
+This is simply a dock identifier, provided by the library.
+A dock identifier is basically just a wrapper around HANDLEs and file descriptors: a cross-platform way to identify any given I/O interface.
+More on this later.
+
+A write operation is a tiny bit more tricky, since the user also needs to provide what to write, along with the where.
+To start with the easy part, "`the where`" is yet again just a simple dock identifier, discussed in more detail later.
+And now to "`the what`": there exists a write pool for exactly this purpose, the user writes into this memory, and libhaven uses this buffer to perform the operation.
+
+Note that these low-level I/O operations all work in memory blocks.
+These are constant size buffers mostly of 4Ki size (depending on the page size of the platform).
+
+So when a read operation is provided a buffer, it is, in-fact a page-size buffer containing the freshly read data.
+And when a write operation requests a buffer, it is provided a page-size buffer to which the to-be-written data is needed to be provided to.
+
+=== High-level commands and events
+
+While low-level page-sized I/O should be enough for all kinds of operations, it is undeniably uncomfortable for a high-level application to deal with fixed-sized buffers, and breaking up larger messages into smaller parts, et cetera.
+
+To reduce the user's problems, libhaven provides a set of contracts that the busy sailors of the harbor are to complete without intervention.
+
+Most high-level programs do not really want to deal with page-sized parts of any given file.
+Say, I'm working with some legacy binary format that is needed to be completely loaded into memory to be able to do anything with it.
+For this, it'd be preferable to me that libhaven read the whole file, even if it does not fit into one buffer, and provide to me a larger buffer of bytes outside of the I/O system's pooled memory and just passed to me.
+
+Similarly, if I'm making a web-server that is serving HTTP traffic, sometimes a full HTML (static) file is needed to be served.
+This is actually two operations: a read and a write, like a pipe.
+For me, the easiest part would be if I could just tell libhaven to take this dock and read everything from it and pipe the data as-is to this other dock.
+
+With these operations, most users do not need to explicitly work with blocked I/O, and can be more interested in their business logic.
+As library writers this is our most important goal, after all; this is our business logic.
+
+=== The insides of contracts
+
+Taking a look at how these contracts could be executed, we see that these are basically just a string of jobs that need to be executed in some special order, automatically.
+
+For this, we need to be able to queue jobs in a way, such that one can only happen after another, basically we need lists of jobs in the queue, instead of just simple jobs.
+
+

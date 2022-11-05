@@ -1,0 +1,138 @@
+## Style Settings ##
+Language: Cpp
+Standard: Auto
+BasedOnStyle: LLVM
+
+AccessModifierOffset: -4
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: false
+AlignOperands: Align
+AlignConsecutiveBitFields: false
+AlignConsecutiveDeclarations: false
+AlignConsecutiveMacros: false
+AlignEscapedNewlines: Left
+AlignTrailingComments: true
+AllowAllArgumentsOnNextLine: false
+AllowAllConstructorInitializersOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortBlocksOnASingleLine: Empty
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortEnumsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLambdasOnASingleLine: Inline
+AllowShortLoopsOnASingleLine: true
+AlwaysBreakAfterReturnType: All
+AlwaysBreakTemplateDeclarations: 'Yes'
+AlwaysBreakAfterDefinitionReturnType: All
+AlwaysBreakBeforeMultilineStrings: false
+BinPackArguments: false
+BinPackParameters: false
+BitFieldColonSpacing: After
+BreakStringLiterals: true
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterExternBlock: true
+  AfterStruct: false
+  AfterCaseLabel: false
+  AfterClass: false
+  AfterControlStatement: Never
+  AfterEnum: false
+  AfterFunction: false
+  AfterNamespace: false
+  AfterUnion: false
+  BeforeCatch: false
+  BeforeElse: false
+  BeforeLambdaBody: false
+  IndentBraces: false
+  SplitEmptyFunction: false
+  SplitEmptyRecord: true
+  SplitEmptyNamespace: false
+BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializers: BeforeColon
+BreakInheritanceList: BeforeColon
+ColumnLimit: 0
+CommentPragmas: ^clang-format
+CompactNamespaces: true
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+ConstructorInitializerIndentWidth: 5
+ContinuationIndentWidth: 7
+Cpp11BracedListStyle: true
+DeriveLineEnding: true
+DerivePointerAlignment: false
+FixNamespaceComments: false
+IncludeBlocks: Regroup
+IncludeCategories:
+  # Forward declarations #
+  - Regex: ^<.*_fwd\.hxx>
+    Priority: 1
+  # stdlib headers (without suffix) #
+  - Regex: ^<[[:alnum:]_/]+>$
+    Priority: 5
+  # project headers #
+  - Regex: ^<(mana|mage)/.*\.hxx>$
+    Priority: 9
+  # C++ headers #
+  - Regex: ^<.*\.([hi][xp]{2}|hh)>$
+    Priority: 10
+  # windows.h #
+  - Regex: ^<[Ww]indows.h>$
+    Priority: 998
+  # other WinAPI headers #
+  - Regex: ^<(win.+|shlobj|tchar|shell.+|ws2.+)\.h>$
+    Priority: 999
+  # C headers #
+  - Regex: ^<.*\.h>$
+    Priority: 15
+IndentCaseBlocks: false
+IndentCaseLabels: false
+IndentExternBlock: Indent
+IndentGotoLabels: false
+IndentPPDirectives: AfterHash
+PPIndentWidth: 2
+LambdaBodyIndentation: Signature
+IndentAccessModifiers: false
+InsertTrailingCommas: None
+IndentWidth: 4
+IndentWrappedFunctionNames: false
+KeepEmptyLinesAtTheStartOfBlocks: true
+MaxEmptyLinesToKeep: 2
+NamespaceIndentation: All
+ObjCSpaceAfterProperty: false
+ObjCSpaceBeforeProtocolList: true
+PointerAlignment: Left
+ReflowComments: false
+SortIncludes: CaseSensitive
+SortUsingDeclarations: false
+SpaceAfterCStyleCast: true
+SpaceAfterLogicalNot: false
+SpaceAfterTemplateKeyword: false
+SpaceBeforeSquareBrackets: false
+SpaceBeforeAssignmentOperators: true
+SpacesInConditionalStatement: false
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
+SpaceBeforeParens: ControlStatements
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceInEmptyParentheses: false
+SpaceInEmptyBlock: true
+SpacesBeforeTrailingComments: 1
+SpacesInAngles: false
+SpacesInCStyleCastParentheses: false
+SpacesInContainerLiterals: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+TabWidth: 4
+UseTab: Never
+
+## Penalty Settings ##
+PenaltyReturnTypeOnItsOwnLine: 0
+PenaltyBreakTemplateDeclaration: 0
+PenaltyBreakComment: 1
+PenaltyExcessCharacter: 1
+PenaltyBreakString: 2
+PenaltyBreakAssignment: 2
+PenaltyBreakFirstLessLess: 4
+PenaltyBreakBeforeFirstCallParameter: 5
