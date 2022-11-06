@@ -182,13 +182,14 @@ set(HAVEN_LIBRARY_SOURCES)
 #                      $<$<PLATFORM_ID:Windows>:ws2_32>
 #                      $<$<PLATFORM_ID:Windows>:mswsock>)
 
+include(CTest)
+if (HAVE_BUILD_TESTS)
+    find_package(ut CONFIG REQUIRED)
+    add_subdirectory(test)
+endif ()
+
 if (HAVEN_BUILD_BENCHMARKS)
     find_package(nonius CONFIG REQUIRED)
     find_package(ut CONFIG REQUIRED)
     add_subdirectory(benchmark)
-endif ()
-
-if (HAVE_BUILD_TESTS)
-    find_package(ut CONFIG REQUIRED)
-    add_subdirectory(test)
 endif ()

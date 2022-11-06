@@ -1,7 +1,13 @@
-= lzcnt vs ringbuffer
+= Buffer benchmark
 
-This benchmark tests a bit-counting lzcnt based constant sized buffer against a ringbuffer.
-Whichever wins will be used as the puddle implementation.
+Benchmark for thread-safe static-size buffers.
+The following implementations are checked:
+
+- Read/Write mutex based with linear search (baseline)
+- Read/Write mutex based with ls in control array
+- atomic with ls in control array
+- atomic ringbuffer-like
+- atomic ffs based
 
 == Buffer requirements
 

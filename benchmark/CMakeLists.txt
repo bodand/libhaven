@@ -38,4 +38,4 @@
 #   found inside libhaven, as these were used in the design phase to figure out
 #   which is the appropriate solution for the speed needs of libhaven.
 
-add_subdirectory("ffs vs ringbuffer")
+add_subdirectory("buffer")

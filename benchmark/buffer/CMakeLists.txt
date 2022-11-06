@@ -39,19 +39,57 @@
 #     - insertion to full store
 #     - deletion
 
+## mx_buffer implementation & test #############################################
+add_library(mx_buffer OBJECT mx_buffer.hxx mx_buffer.cxx)
+target_compile_features(mx_buffer PUBLIC cxx_std_20)
+
+add_executable(mx-test mx_buffer_test.cxx)
+target_link_libraries(mx-test PRIVATE mx_buffer Boost::ut)
+target_compile_definitions(mx-test PRIVATE
+                           BOOST_UT_DISABLE_MODULE
+                           $<$<CXX_COMPILER_ID:MSVC>:_HAS_DEPRECATED_RESULT_OF>)
+add_test(NAME MutexBuffer
+         COMMAND mx-test)
+
 ## ffs_buffer implementation & test ############################################
 add_library(ffs_buffer OBJECT ffs_buffer.hxx ffs_buffer.cxx)
 target_compile_features(ffs_buffer PUBLIC cxx_std_20)
 
 add_executable(ffs-test ffs_buffer_test.cxx)
 target_link_libraries(ffs-test PRIVATE ffs_buffer Boost::ut)
-target_compile_definitions(ffs-test PRIVATE BOOST_UT_DISABLE_MODULE)
+target_compile_definitions(ffs-test PRIVATE
+                           BOOST_UT_DISABLE_MODULE
+                           $<$<CXX_COMPILER_ID:MSVC>:_HAS_DEPRECATED_RESULT_OF>)
+add_test(NAME FFSBuffer
+         COMMAND ffs-test)
 
 ## ringbuffer implementation & test ############################################
 
-## benchmark ###################################################################
-add_executable(ffs-vs-ringbuffer main.cxx)
-target_link_libraries(ffs-vs-ringbuffer PRIVATE
+## benchmarks ##################################################################
+add_executable(buffer_insert insert.cxx)
+target_link_libraries(buffer_insert PRIVATE
                       ffs_buffer
+                      mx_buffer
                       Nonius::nonius)
+target_compile_definitions(buffer_insert PRIVATE
+                           $<$<CXX_COMPILER_ID:MSVC>:_HAS_DEPRECATED_RESULT_OF>)
+add_executable(buffer_half_insert half_insert.cxx)
+target_link_libraries(buffer_half_insert PRIVATE
+                      ffs_buffer
+                      mx_buffer
+                      Nonius::nonius)
+target_compile_definitions(buffer_half_insert PRIVATE
+                           $<$<CXX_COMPILER_ID:MSVC>:_HAS_DEPRECATED_RESULT_OF>)
+add_executable(buffer_full_insert half_insert.cxx)
+target_link_libraries(buffer_full_insert PRIVATE
+                      ffs_buffer
+                      mx_buffer
+                      Nonius::nonius)
+target_compile_definitions(buffer_full_insert PRIVATE
+                           $<$<CXX_COMPILER_ID:MSVC>:_HAS_DEPRECATED_RESULT_OF>)
 
+add_custom_target(buffer-benchmarks
+                  COMMAND buffer_insert -r html -o insert.html -t "Empty Insertion" -s 500
+                  COMMAND buffer_half_insert -r html -o half_insert.html -t "Half-filled Insertion" -s 500
+                  COMMAND buffer_full_insert -r html -o full_insert.html -t "Full-filled Insertion" -s 500
+                  )

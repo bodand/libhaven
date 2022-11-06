@@ -21,6 +21,7 @@
 #include <boost/ut.hpp>
 
 #include "ffs_buffer.hxx"
+#include "test_type.hxx"
 using namespace boost::ut;
 
 [[maybe_unused]] const suite ffs_tests = [] {
@@ -50,16 +51,6 @@ using namespace boost::ut;
         expect(that % bit::popcount(11ULL) == 3ULL);
     };
 };
-
-struct test_type {
-    test_type(std::uint32_t a,
-              std::uint32_t b) : a(a),
-                                 b(b) { }
-
-    std::uint32_t a;
-    std::uint32_t b;
-};
-static_assert(sizeof(test_type) == 8);
 
 [[maybe_unused]] const suite ffs_buffer_test = [] {
     "capacity is reported to be PageSize/type size"_test = [] {

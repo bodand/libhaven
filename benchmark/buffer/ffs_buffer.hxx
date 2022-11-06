@@ -48,10 +48,11 @@ struct ffs_buffer {
             return get_idx();
         }
 
-        ref_t() : _buf(nullptr),
-                  _ptr(nullptr),
-                  _idx(-1),
-                  _keep(true) { }
+        ref_t()
+             : _buf(nullptr),
+               _ptr(nullptr),
+               _idx(-1),
+               _keep(true) { }
 
         ref_t(const ref_t& cp)
              : _buf(cp._buf),
@@ -140,7 +141,6 @@ struct ffs_buffer {
 #endif
     }
 
-    // TODO
     ffs_buffer(const ffs_buffer&) = delete;
     ffs_buffer&
     operator=(const ffs_buffer&) = delete;
