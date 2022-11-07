@@ -3,11 +3,11 @@
 Benchmark for thread-safe static-size buffers.
 The following implementations are checked:
 
+- Simple mutex based with linear search
 - Read/Write mutex based with linear search (baseline)
-- Read/Write mutex based with ls in control array
-- atomic with ls in control array
-- atomic ringbuffer-like
 - atomic ffs based
+
+verdict:
 
 == Buffer requirements
 

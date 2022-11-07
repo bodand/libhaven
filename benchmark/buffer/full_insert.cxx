@@ -14,6 +14,7 @@
 
 #include "ffs_buffer.hxx"
 #include "mx_buffer.hxx"
+#include "rw_buffer.hxx"
 #include "test_type.hxx"
 #include <nonius/main.h++>
 #include <nonius/nonius.h++>
@@ -34,6 +35,19 @@ NONIUS_BENCHMARK("mutex buffer insert", [](nonius::chronometer meter) {
 NONIUS_BENCHMARK("ffs buffer insert", [](nonius::chronometer meter) {
     std::mt19937 mt(std::random_device{}());
     ffs_buffer<test_type> ffs_bfr;
+    auto insert_fn = [&ffs_bfr, &mt] {
+        return ffs_bfr.insert(test_type::mk_random(mt));
+    };
+
+    std::vector<decltype(ffs_bfr)::ref_t> fills;
+    std::generate_n(std::back_inserter(fills), ffs_bfr.capacity(), insert_fn);
+
+    meter.measure(insert_fn);
+})
+
+NONIUS_BENCHMARK("rw buffer insert", [](nonius::chronometer meter) {
+    std::mt19937 mt(std::random_device{}());
+    rw_buffer<test_type> ffs_bfr;
     auto insert_fn = [&ffs_bfr, &mt] {
         return ffs_bfr.insert(test_type::mk_random(mt));
     };

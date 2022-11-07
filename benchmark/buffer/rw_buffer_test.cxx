@@ -21,11 +21,11 @@
 
 #include <boost/ut.hpp>
 
-#include "mx_buffer.hxx"
+#include "rw_buffer.hxx"
 #include "test_type.hxx"
 using namespace boost::ut;
 
-[[maybe_unused]] const suite mx_buffer_tests = [] {
+[[maybe_unused]] const suite rw_buffer_tests = [] {
     "capacity is reported to maximum PageSize/type size"_test = [] {
         constexpr const auto exp_size = 4096 / sizeof(test_type);
         rw_buffer<test_type> buf;

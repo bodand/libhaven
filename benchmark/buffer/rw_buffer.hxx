@@ -5,18 +5,19 @@
  *
  * Originally created: 2022-11-06.
  *
- * benchmark/buffer/mx_buffer --
+ * benchmark/buffer/rw_buffer --
  */
-#ifndef LIBHAVEN_MX_BUFFER_HXX
-#define LIBHAVEN_MX_BUFFER_HXX
+#ifndef LIBHAVEN_rw_buffer_HXX
+#define LIBHAVEN_rw_buffer_HXX
 
 #include <algorithm>
 #include <bit>
 #include <cstddef>
 #include <mutex>
+#include <shared_mutex>
 
 template<class T, std::size_t PageSize = 4096>
-class mx_buffer {
+class rw_buffer {
     constexpr static const auto debug_byte = std::byte(0xAF);
 
     template<class S>
@@ -86,8 +87,8 @@ class mx_buffer {
 public:
     using size_type = decltype(PageSize);
     struct ref_t {
-        using buffer_type = mx_buffer<T, PageSize>;
-        using size_type = typename mx_buffer<T, PageSize>::size_type;
+        using buffer_type = rw_buffer<T, PageSize>;
+        using size_type = typename rw_buffer<T, PageSize>::size_type;
 
         [[nodiscard]] size_type
         get_idx() const noexcept {
@@ -155,7 +156,7 @@ public:
         }
 
     private:
-        friend mx_buffer;
+        friend rw_buffer;
 
         friend bool
         operator==(const ref_t& a, const ref_t& b) {
@@ -190,7 +191,7 @@ public:
 
     [[nodiscard]] bool
     was_full() {
-        std::scoped_lock lck(_data_mx);
+        std::shared_lock lck(_read_mx);
         return std::ranges::all_of(_data, &store<T>::valid);
     }
 
@@ -198,12 +199,15 @@ public:
     [[nodiscard]] ref_t
     insert(U&& arg) {
         using std::begin, std::end;
-        std::scoped_lock lck(_data_mx);
+        std::shared_lock lck(_read_mx);
         auto free_store = std::ranges::find_if(_data, [](const auto& data_store) {
             return !data_store.valid();
         });
         if (free_store == end(_data)) return ref_t{};
 
+        std::scoped_lock wlck(_write_mx);
+        lck.unlock();
+        std::unique_lock ulck(_read_mx);
         free_store->construct(std::forward<U>(arg));
 
         return ref_t(this, &*free_store, std::distance(begin(_data), free_store));
@@ -211,18 +215,20 @@ public:
 
     void
     remove(size_type idx) {
-        std::scoped_lock lck(_data_mx);
+        std::scoped_lock lck(_write_mx, _read_mx);
         _data[idx].destruct();
     }
 
     void
     checked_remove(size_type idx) {
-        std::scoped_lock lck(_data_mx);
+        std::scoped_lock lck(_write_mx, _read_mx);
         if (_data[idx].valid()) _data[idx].destruct();
     }
 
 private:
-    std::mutex _data_mx;
+    std::shared_mutex _read_mx;
+    std::mutex _write_mx;
+
     using store_type = store<T>;
     store_type _data[elem_size]{};
 };
