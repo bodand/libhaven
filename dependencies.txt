@@ -1,1 +1,1 @@
-bext-ut;nonius
+bext-ut;nonius;xsimd

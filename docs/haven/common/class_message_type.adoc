@@ -1,0 +1,26 @@
+= class message_type
+
+A small wrapper type used to implement textual message passing the condition checker functions.
+Because of otherwise ambiguous overload resolution, the context message to xref:object_precondition.adoc[precondition] and xref:object_postcondition.adoc[postcondition] calls may be given using this type.
+
+The type is lightweight; wraps only a std::string_view as a public `data` member.
+
+== Class interface
+
+[source,cpp]
+----
+struct hvn::message_type {
+    std::string_view data;
+};
+----
+
+=== Member variables
+
+_std::string_view_ data:: The string message value contained inside the object.
+
+== Non-members
+
+_std::ostream&_ hvn::operator<<(__std::ostream&__, __const hvn::message_type&__):: Outputs the message contained inside to the given stream.
+
+_hvn::message_type_ hvn::operator""_msg(__const char*__, __std::size_t__) :: Creates a message object from a string literal.
+

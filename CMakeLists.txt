@@ -32,7 +32,7 @@
 # CMakeLists.txt --
 #   The main CMake script for building and managing the libhaven library.
 
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.22)
 enable_language(C)
 enable_language(CXX)
 
@@ -120,6 +120,7 @@ message(STATUS "Using Toolchain: ${CMAKE_CURRENT_BINARY_DIR}/vcpkg-master/script
 if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
     cmake_policy(SET CMP0135 NEW)
 endif ()
+cmake_policy(SET CMP0127 NEW)
 cmake_policy(SET CMP0125 NEW)
 cmake_policy(SET CMP0118 NEW)
 cmake_policy(SET CMP0115 NEW)
@@ -138,19 +139,81 @@ project(libhaven
 
 # Include modules
 include(GNUInstallDirs)
+include(CheckCXXSymbolExists)
+include(CMakeDependentOption)
+
+#include(cmake/simd.cmake)
+
+# libraries
+find_package(xsimd CONFIG REQUIRED)
 
 # options
 option(HAVEN_BUILD_TESTS "Build the have test suite" YES)
 option(HAVEN_BUILD_BENCHMARKS "Build the have benchmark suite" YES)
+cmake_dependent_option(HAVEN_MEMORY_PAGE_OFFER
+                       "Allow offering unused pages back to the OS on compatible systems (Windows+MSVC)" YES
+                       "WIN32 AND MSVC" NO)
+
+## special debug options
+option(HAVEN_DBG_PAGE_TRACE "Trace page allocations" YES)
+option(HAVEN_DBG_PUDDLE_TRACE "Trace allocations in puddles" YES)
+option(HAVEN_DBG_CHECK_CALLS "Validate pre/post-conditions for function calls inside libhaven." YES)
+cmake_dependent_option(HAVEN_DBG_CHECK_PRE
+                       "Check preconditions for libhaven function calls" YES
+                       "HAVEN_DBG_CHECK_CALLS" NO)
+cmake_dependent_option(HAVEN_DBG_CHECK_PRE_PARAMS
+                       "If possible, after a failed precondition check output the list of parameters" YES
+                       "HAVEN_DBG_CHECK_CALLS" NO)
+cmake_dependent_option(HAVEN_DBG_CHECK_POST
+                       "Check postconditions for libhaven function calls" YES
+                       "HAVEN_DBG_CHECK_PRE" NO)
+cmake_dependent_option(HAVEN_DBG_CHECK_POST_PARAMS
+                       "If possible, after a failed postcondition check output the list of parameters" YES
+                       "HAVEN_DBG_CHECK_POST" NO)
+
+## debug flags target
+add_library(haven-dbg INTERFACE)
+target_compile_definitions(haven-dbg INTERFACE
+                           $<$<BOOL:${HAVEN_DBG_PAGE_TRACE}>:HAVEN_DBG_PAGE_TRACE>
+                           $<$<BOOL:${HAVEN_DBG_PUDDLE_TRACE}>:HAVEN_DBG_PUDDLE_TRACE>
+                           $<$<BOOL:${HAVEN_DBG_CHECK_PRE}>:HAVEN_DBG_CHECK_PRE>
+                           HAVEN_DBG_CHECK_PRE_V=0$<BOOL:${HAVEN_DBG_CHECK_PRE}>
+                           HAVEN_DBG_CHECK_PRE_PARAMS_V=0$<BOOL:${HAVEN_DBG_CHECK_PRE_PARAMS}>
+                           $<$<BOOL:${HAVEN_DBG_CHECK_PRE_PARAMS}>:HAVEN_DBG_CHECK_PRE_PARAMS>
+                           $<$<BOOL:${HAVEN_DBG_CHECK_POST}>:HAVEN_DBG_CHECK_POST>
+                           $<$<BOOL:${HAVEN_DBG_CHECK_POST_PARAMS}>:HAVEN_DBG_CHECK_POST_PARAMS>
+                           HAVEN_DBG_CHECK_POST_V=0$<BOOL:${HAVEN_DBG_CHECK_POST}>
+                           HAVEN_DBG_CHECK_POST_PARAMS_V=0$<BOOL:${HAVEN_DBG_CHECK_POST_PARAMS}>
+                           )
 
 # configs
 if (WIN32)
-    set(HAVEN_PLATFORM "win32")
+    set(HAVEN_GENERIC_PLATFORM "win")
+
+    check_cxx_symbol_exists("OfferVirtualMemory" "windows.h;memoryapi.h" HAVE_OFFER_VIRTUAL_MEMORY)
+    check_cxx_symbol_exists("ReclaimVirtualMemory" "windows.h;memoryapi.h" HAVE_RECLAIM_VIRTUAL_MEMORY)
+
+    if (HAVE_OFFER_VIRTUAL_MEMORY AND HAVE_RECLAIM_VIRTUAL_MEMORY)
+        set(HAVEN_SPECIFIC_PLATFORM "win32")
+    else ()
+        set(HAVEN_SPECIFIC_PLATFORM "mingw")
+    endif ()
 else ()
-    set(HAVEN_PLATFORM "posix")
+    set(HAVEN_GENERIC_PLATFORM "unix")
+
+    check_cxx_symbol_exists("sysctl" "sys/types.h;sys/sysctl.h" HAVE_SYSCTL)
+    check_cxx_symbol_exists("sysconf" "unistd.h" HAVE_SYSCONF)
+    check_cxx_symbol_exists("_SC_PAGESIZE" "unistd.h" HAVE_SC_PAGESIZE)
+
+    if (HAVE_SYSCTL)
+        set(HAVEN_SPECIFIC_PLATFORM "bsd")
+    elseif (HAVE_SYSCONF AND HAVE_SC_PAGESIZE)
+        set(HAVEN_SPECIFIC_PLATFORM "linux")
+    endif ()
 endif ()
 
-set(HAVEN_LIBRARY_SOURCES)
+add_subdirectory(src/haven/common)
+add_subdirectory(src/haven/mem)
 
 #add_library(haven_st STATIC
 #            )
@@ -183,7 +246,7 @@ set(HAVEN_LIBRARY_SOURCES)
 #                      $<$<PLATFORM_ID:Windows>:mswsock>)
 
 include(CTest)
-if (HAVE_BUILD_TESTS)
+if (HAVEN_BUILD_TESTS)
     find_package(ut CONFIG REQUIRED)
     add_subdirectory(test)
 endif ()

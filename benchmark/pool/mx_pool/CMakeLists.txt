@@ -29,13 +29,14 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 #
-# benchmark/CMakeLists.txt --
-#   The CMake script for configuring the build of the benchmark suite for
-#   libhaven.
-#   Each set of benchmarks is in a separate subdirectory, named appropriately
-#   about what is to ne benchmarked.
-#   Most of these benchmarks are generic and limited implementations of things
-#   found inside libhaven, as these were used in the design phase to figure out
-#   which is the appropriate solution for the speed needs of libhaven.
+# benchmark/pool/mx_pool --
+#   Implementation of a puddle-based pool using basic mutex semantics.
 
-add_subdirectory(pool)
+add_library(mx_pool OBJECT
+            mx_pool.cxx mx_pool.hxx
+            mx_puddle.cxx mx_puddle.hxx)
+target_include_directories(mx_pool PUBLIC
+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+target_compile_features(mx_pool PUBLIC cxx_std_20)
+target_link_libraries(mx_pool PRIVATE page-allocator xsimd)
+

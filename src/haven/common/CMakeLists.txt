@@ -29,13 +29,26 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 #
-# benchmark/CMakeLists.txt --
-#   The CMake script for configuring the build of the benchmark suite for
-#   libhaven.
-#   Each set of benchmarks is in a separate subdirectory, named appropriately
-#   about what is to ne benchmarked.
-#   Most of these benchmarks are generic and limited implementations of things
-#   found inside libhaven, as these were used in the design phase to figure out
-#   which is the appropriate solution for the speed needs of libhaven.
+# src/haven/common/CMakeLists --
+#   Common utilities used by libhaven that cannot be separated into meaningful
+#   units on their own.
 
-add_subdirectory(pool)
+project(libhaven-common
+        VERSION 1.0)
+
+add_library(haven_common STATIC check_conditions.cxx)
+add_library(haven::common ALIAS haven_common)
+
+cmake_path(GET CMAKE_CURRENT_SOURCE_DIR PARENT_PATH haven_dir)
+cmake_path(GET haven_dir PARENT_PATH src_dir)
+
+target_include_directories(haven_common PUBLIC
+                           $<BUILD_INTERFACE:${src_dir}>
+                           $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+target_link_libraries(haven_common PUBLIC haven-dbg)
+target_compile_features(haven_common PUBLIC cxx_std_20)
+set_target_properties(haven_common PROPERTIES
+                      VERSION "${CMAKE_PROJECT_VERSION}"
+                      SOVERSION "${CMAKE_PROJECT_VERSION}"
+                      OUTPUT_NAME "common-${CMAKE_PROJECT_VERSION}"
+                      PREFIX "libhvn-")

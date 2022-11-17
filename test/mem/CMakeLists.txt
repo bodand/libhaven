@@ -29,13 +29,14 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 #
-# benchmark/CMakeLists.txt --
-#   The CMake script for configuring the build of the benchmark suite for
-#   libhaven.
-#   Each set of benchmarks is in a separate subdirectory, named appropriately
-#   about what is to ne benchmarked.
-#   Most of these benchmarks are generic and limited implementations of things
-#   found inside libhaven, as these were used in the design phase to figure out
-#   which is the appropriate solution for the speed needs of libhaven.
+# test/mem/CMakeLists.txt --
+#   Test cmake script for the test suite of haven::mem.
 
-add_subdirectory(pool)
+add_executable(hvn-mem-tests
+               main.cxx
+               puddle.cxx)
+target_link_libraries(hvn-mem-tests PRIVATE haven::mem Boost::ut)
+target_compile_definitions(hvn-mem-tests PRIVATE
+                           BOOST_UT_DISABLE_MODULE)
+add_test(NAME "haven_mem_tests"
+         COMMAND hvn-mem-tests)

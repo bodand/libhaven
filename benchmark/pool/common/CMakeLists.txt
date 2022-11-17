@@ -29,13 +29,27 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 #
-# benchmark/CMakeLists.txt --
-#   The CMake script for configuring the build of the benchmark suite for
-#   libhaven.
-#   Each set of benchmarks is in a separate subdirectory, named appropriately
-#   about what is to ne benchmarked.
-#   Most of these benchmarks are generic and limited implementations of things
-#   found inside libhaven, as these were used in the design phase to figure out
-#   which is the appropriate solution for the speed needs of libhaven.
+# benchmark/pool/common --
+#   Implementation of a page-granular allocator using the raw system allocator
+#   interfaces.
 
-add_subdirectory(pool)
+set(allocator_generic_platform "page-allocator.${HAVEN_GENERIC_PLATFORM}.cxx")
+set(allocator_specific_platform "page-allocator.${HAVEN_SPECIFIC_PLATFORM}.cxx")
+if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${allocator_generic_platform}")
+    unset(allocator_generic_platform)
+endif ()
+if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${allocator_specific_platform}")
+    unset(allocator_specific_platform)
+endif ()
+
+add_library(page-allocator STATIC
+            page-allocator.hxx
+            ${allocator_generic_platform}
+            ${allocator_specific_platform}
+            check_conditions.hxx check_conditions.cxx)
+target_link_libraries(page-allocator PUBLIC
+                      haven-dbg)
+target_include_directories(page-allocator PUBLIC
+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+target_compile_features(page-allocator PUBLIC cxx_std_20)
+

@@ -29,13 +29,39 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 #
-# benchmark/CMakeLists.txt --
-#   The CMake script for configuring the build of the benchmark suite for
-#   libhaven.
-#   Each set of benchmarks is in a separate subdirectory, named appropriately
-#   about what is to ne benchmarked.
-#   Most of these benchmarks are generic and limited implementations of things
-#   found inside libhaven, as these were used in the design phase to figure out
-#   which is the appropriate solution for the speed needs of libhaven.
+# src/haven/mem --
+#   Memory management functionality used by libhaven.
 
-add_subdirectory(pool)
+project(libhaven-mem
+        VERSION 1.0)
+
+set(allocator_generic_platform "page-allocator.${HAVEN_GENERIC_PLATFORM}.cxx")
+set(allocator_specific_platform "page-allocator.${HAVEN_SPECIFIC_PLATFORM}.cxx")
+if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${allocator_generic_platform}")
+    unset(allocator_generic_platform)
+endif ()
+if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${allocator_specific_platform}")
+    unset(allocator_specific_platform)
+endif ()
+
+add_library(haven_mem STATIC
+            ${allocator_generic_platform}
+            ${allocator_specific_platform}
+            puddle.hxx puddle.cxx
+            pool.hxx pool.cxx)
+add_library(haven::mem ALIAS haven_mem)
+
+cmake_path(GET CMAKE_CURRENT_SOURCE_DIR PARENT_PATH haven_dir)
+cmake_path(GET haven_dir PARENT_PATH src_dir)
+
+target_include_directories(haven_mem PUBLIC
+                           $<BUILD_INTERFACE:${src_dir}>
+                           $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+target_compile_features(haven_mem PUBLIC cxx_std_20)
+target_link_libraries(haven_mem
+                      PUBLIC haven::common xsimd haven-dbg)
+set_target_properties(haven_mem PROPERTIES
+                      VERSION "${CMAKE_PROJECT_VERSION}"
+                      SOVERSION "${CMAKE_PROJECT_VERSION}"
+                      OUTPUT_NAME "mem-${CMAKE_PROJECT_VERSION}"
+                      PREFIX "libhvn-")

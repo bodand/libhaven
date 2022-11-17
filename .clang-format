@@ -42,7 +42,7 @@ BraceWrapping:
   AfterNamespace: false
   AfterUnion: false
   BeforeCatch: false
-  BeforeElse: false
+  BeforeElse: true
   BeforeLambdaBody: false
   IndentBraces: false
   SplitEmptyFunction: false

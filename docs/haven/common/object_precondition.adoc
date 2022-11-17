@@ -1,0 +1,19 @@
+= object precondition
+
+Globally available function that can be used to denote a precondition.
+If the provided invocable evaluates to false, the program aborts.
+
+This is basically a more powerful version of the standard C https://man.bsd.lv/assert[assert(3)] macro.
+
+NOTE: Currently, the precondition is implemented using a function and a global inline object.
+This may or may not change.
+For the instantiated class (template) see xref:class_check_conditions.adoc[check_conditions].
+
+[source,cpp]
+----
+template<class Fn, class... Args>
+void precondition(Fn&& fn, Args&&... args);
+
+template<class Fn, class... Args>
+void precondition(Fn&& fn, Args&&... args);
+----

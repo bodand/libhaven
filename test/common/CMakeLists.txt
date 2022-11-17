@@ -29,13 +29,15 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 #
-# benchmark/CMakeLists.txt --
-#   The CMake script for configuring the build of the benchmark suite for
-#   libhaven.
-#   Each set of benchmarks is in a separate subdirectory, named appropriately
-#   about what is to ne benchmarked.
-#   Most of these benchmarks are generic and limited implementations of things
-#   found inside libhaven, as these were used in the design phase to figure out
-#   which is the appropriate solution for the speed needs of libhaven.
+# test/common/CMakeLists.txt --
+#   Test cmake script for the test suite of haven::common.
 
-add_subdirectory(pool)
+add_executable(hvn-common-tests
+               main.cxx
+               preconditions.cxx
+               postconditions.cxx)
+target_link_libraries(hvn-common-tests PRIVATE haven::common Boost::ut)
+target_compile_definitions(hvn-common-tests PRIVATE
+                           BOOST_UT_DISABLE_MODULE)
+add_test(NAME "haven_common_tests"
+         COMMAND hvn-common-tests)
